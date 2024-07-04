@@ -36,4 +36,6 @@ $ ./cgfx2gltf -v some_model.bin
 
 The source code for this application is licensed under the MIT License.
 
+* [stb_image](https://github.com/nothings/stb) by Sean Barrett aka "nothings", public domain
+* [stb_image_write](https://github.com/nothings/stb) by Sean Barrett aka "nothings", public domain
 * [cgltf](https://github.com/jkuhlmann/cgltf) by Johannes Kuhlmann, MIT License
