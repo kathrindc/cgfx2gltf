@@ -35,6 +35,22 @@
 #define TYPE_PARTICLE 15
 #define TYPE__COUNT (TYPE_PARTICLE + 1)
 
+#define TEX_FORMAT_RGBA8 0
+#define TEX_FORMAT_RGB8 1
+#define TEX_FORMAT_RGBA5551 2
+#define TEX_FORMAT_RGB565 3
+#define TEX_FORMAT_RGBA4 4
+#define TEX_FORMAT_LA8 5
+#define TEX_FORMAT_HILO8 6
+#define TEX_FORMAT_L8 7
+#define TEX_FORMAT_A8 8
+#define TEX_FORMAT_LA4 9
+#define TEX_FORMAT_L4 10
+#define TEX_FORMAT_A4 11
+#define TEX_FORMAT_ETC1 12
+#define TEX_FORMAT_ETC1A4 13
+#define TEX_FORMAT_OTHER 14
+
 typedef struct {
   int32_t ref_bit;
   uint16_t left_node;
@@ -86,12 +102,13 @@ typedef struct {
 } txob_header;
 
 typedef struct {
-  char* name;
+  char *name;
   uint32_t height;
   uint32_t width;
   uint32_t format;
   uint32_t size;
-  uint8_t *data;
+  uint32_t bpp;
+  dict user_data;
 } texture;
 
 typedef struct {
@@ -151,6 +168,8 @@ void read_dict(FILE *file, dict *dict);
 void read_dict_indirect(FILE *file, dict *dict);
 void read_string(FILE *file, uint32_t offset, uint32_t *length, char *text);
 char *read_string_alloc(FILE *file, uint32_t offset);
+void pica200_decode(uint8_t *data, uint32_t width, uint32_t height,
+                    uint32_t format, uint8_t **pixels);
 
 int main(int argc, char **argv) {
   if (argc == 2 && strncmp(argv[1], "-h", 2) == 0) {
@@ -165,6 +184,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "usage: cgfx2gltf [-v|-vv|-vvv] CGFX_FILE\n");
     exit(1);
   }
+
+  stbi_write_tga_with_rle = 0;
 
   int verbose = 0;
   int cgfx_index = 1;
@@ -372,9 +393,6 @@ int main(int argc, char **argv) {
 #undef COND_PRINT_DICT
   }
 
-  uint16_t num_textures = 0;
-  texture* textures = NULL;
-
   for (int i = 0; i < data.dicts[TYPE_TEXTURE].num_entries; ++i) {
     dict_entry *entry = data.dicts[TYPE_TEXTURE].entries + i;
     char *name = read_string_alloc(cgfx_file, entry->offset_name);
@@ -409,9 +427,40 @@ int main(int argc, char **argv) {
     assert(fread(&txob.location_address, 4, 1, cgfx_file) == 1);
     assert(fread(&txob.memory_address, 4, 1, cgfx_file) == 1);
 
-    if (textures == NULL) {
-      textures = malloc(sizeof(texture));
+    uint8_t *data = malloc(txob.data_length);
+    uint8_t *pixels;
+
+    fseek(cgfx_file, txob.data_offset, SEEK_SET);
+    assert(fread(data, 1, txob.data_length, cgfx_file) == txob.data_length);
+
+    pica200_decode(data, txob.width, txob.height, txob.format, &pixels);
+    if (pixels == NULL) {
+      fprintf(stderr, "Error: Texture \"%s\" has unsupported format 0x%08x\n",
+              name, txob.format);
+      free(data);
+      continue;
     }
+
+    uint32_t tga_path_length = strlen(output_dir) + strlen(name) + 6;
+    char *tga_path = malloc(tga_path_length);
+    memset(tga_path, 0, tga_path_length);
+    strlcpy(tga_path, output_dir, tga_path_length);
+    strlcat(tga_path, "/", tga_path_length);
+    strlcat(tga_path, name, tga_path_length);
+    strlcat(tga_path, ".tga", tga_path_length);
+
+    int write_ok = stbi_write_tga(tga_path, txob.width, txob.height, 4, pixels);
+    if (!write_ok) {
+      fprintf(stderr, "Error: Failed to write \"%s\" to disk\n", name);
+      free(data);
+      continue;
+    }
+
+    if (verbose) {
+      printf("Success: Texture \"%s\" saved as TGA image\n", name);
+    }
+
+    free(data);
   }
 
   for (int i = 0; i < data.dicts[TYPE_MODEL].num_entries; ++i) {
@@ -522,4 +571,177 @@ char *read_string_alloc(FILE *file, uint32_t offset) {
   read_string(file, offset, NULL, str);
 
   return str;
+}
+
+int32_t pica200_tile_order[64] = {
+    0,  1,  8,  9,  2,  3,  10, 11, 16, 17, 24, 25, 18, 19, 26, 27,
+    4,  5,  12, 13, 6,  7,  14, 15, 20, 21, 28, 29, 22, 23, 30, 31,
+    32, 33, 40, 41, 34, 35, 42, 43, 48, 49, 56, 57, 50, 51, 58, 59,
+    36, 37, 44, 45, 38, 39, 46, 47, 52, 53, 60, 61, 54, 55, 62, 63};
+
+int32_t etc1_lut[8][4] = {{2, 8, -2, -8},       {5, 17, -5, -17},
+                          {9, 29, -9, -29},     {13, 42, -13, -42},
+                          {18, 60, -18, -60},   {24, 80, -24, -80},
+                          {33, 106, -33, -106}, {47, 183, -47, -183}};
+
+void pica200_decode(uint8_t *data, uint32_t width, uint32_t height,
+                    uint32_t format, uint8_t **out_pixels) {
+  uint8_t *pixels = malloc(width * height * 4);
+  uint32_t data_offset = 0;
+  uint8_t half_byte = 0;
+
+#define LOOP_PIXELS_COMMON1(block)                                             \
+  for (uint32_t y = 0; y < height / 8; ++y) {                                  \
+    for (uint32_t x = 0; x < width / 8; ++x) {                                 \
+      for (uint32_t p = 0; p < 64; ++p) {                                      \
+        uint32_t ox = pica200_tile_order[p] % 8;                               \
+        uint32_t oy = (pica200_tile_order[p] - ox) / 8;                        \
+        uint32_t pixels_offset = ((x * 8) + ox + ((y * 8 + oy) * width)) * 4;  \
+        block                                                                  \
+      }                                                                        \
+    }                                                                          \
+  }
+
+  switch (format) {
+  case TEX_FORMAT_RGBA8:
+    LOOP_PIXELS_COMMON1({
+      memcpy(pixels + pixels_offset, data + data_offset + 1, 3);
+      pixels[pixels_offset + 3] = data[data_offset];
+      data_offset += 4;
+    })
+    break;
+
+  case TEX_FORMAT_RGB8:
+    LOOP_PIXELS_COMMON1({
+      memcpy(pixels + pixels_offset, data + data_offset, 3);
+      pixels[pixels_offset + 3] = 0xFF;
+      data_offset += 3;
+    })
+    break;
+
+  case TEX_FORMAT_RGBA5551:
+    LOOP_PIXELS_COMMON1({
+      uint16_t pixel_data = ((uint16_t)data[data_offset]) |
+                            (((uint16_t)data[data_offset + 1]) << 8);
+      uint8_t r = (uint8_t)(((pixel_data >> 1) & 0x1F) << 3);
+      uint8_t g = (uint8_t)(((pixel_data >> 6) & 0x1F) << 3);
+      uint8_t b = (uint8_t)(((pixel_data >> 11) & 0x1F) << 3);
+
+      pixels[pixels_offset] = r | (r >> 5);
+      pixels[pixels_offset + 1] = g | (g >> 5);
+      pixels[pixels_offset + 2] = b | (b >> 5);
+      pixels[pixels_offset + 3] = (uint8_t)((pixel_data & 1) * 0xFF);
+      data_offset += 2;
+    })
+    break;
+
+  case TEX_FORMAT_RGB565:
+    LOOP_PIXELS_COMMON1({
+      uint16_t pixel_data = ((uint16_t)data[data_offset]) |
+                            (((uint16_t)data[data_offset + 1]) << 8);
+      uint8_t r = (uint8_t)((pixel_data & 0x1F) << 3);
+      uint8_t g = (uint8_t)(((pixel_data >> 5) & 0x3F) << 2);
+      uint8_t b = (uint8_t)(((pixel_data >> 11) & 0x1F) << 3);
+
+      pixels[pixels_offset] = r | (r >> 5);
+      pixels[pixels_offset + 1] = g | (g >> 6);
+      pixels[pixels_offset + 2] = b | (b >> 5);
+      pixels[pixels_offset + 3] = 0xFF;
+      data_offset += 2;
+    })
+    break;
+
+  case TEX_FORMAT_RGBA4:
+    LOOP_PIXELS_COMMON1({
+      uint16_t pixel_data = ((uint16_t)data[data_offset]) |
+                            (((uint16_t)data[data_offset + 1]) << 8);
+      uint8_t r = (uint8_t)((pixel_data >> 4) & 0xF);
+      uint8_t g = (uint8_t)((pixel_data >> 8) & 0xF);
+      uint8_t b = (uint8_t)((pixel_data >> 12) & 0xF);
+      uint8_t a = (uint8_t)(pixel_data & 0xF);
+
+      pixels[pixels_offset] = r | (r << 4);
+      pixels[pixels_offset + 1] = g | (g << 4);
+      pixels[pixels_offset + 2] = b | (b << 4);
+      pixels[pixels_offset + 3] = a | (a << 4);
+      data_offset += 2;
+    })
+    break;
+
+  case TEX_FORMAT_LA8:
+  case TEX_FORMAT_HILO8:
+    LOOP_PIXELS_COMMON1({
+      pixels[pixels_offset] = data[data_offset];
+      pixels[pixels_offset + 1] = data[data_offset];
+      pixels[pixels_offset + 2] = data[data_offset];
+      pixels[pixels_offset + 3] = data[data_offset + 1];
+      data_offset += 2;
+    })
+    break;
+
+  case TEX_FORMAT_L8:
+    LOOP_PIXELS_COMMON1({
+      pixels[pixels_offset] = data[data_offset];
+      pixels[pixels_offset + 1] = data[data_offset];
+      pixels[pixels_offset + 2] = data[data_offset];
+      pixels[pixels_offset + 3] = 0xFF;
+      data_offset += 1;
+    })
+    break;
+
+  case TEX_FORMAT_A8:
+    LOOP_PIXELS_COMMON1({
+      pixels[pixels_offset] = 0xFF;
+      pixels[pixels_offset + 1] = 0xFF;
+      pixels[pixels_offset + 2] = 0xFF;
+      pixels[pixels_offset + 3] = data[data_offset];
+      data_offset += 1;
+    })
+    break;
+
+  case TEX_FORMAT_LA4:
+    LOOP_PIXELS_COMMON1({
+      uint8_t l = (data[data_offset] >> 4) & 0xF;
+      pixels[pixels_offset] = l;
+      pixels[pixels_offset + 1] = l;
+      pixels[pixels_offset + 2] = l;
+      pixels[pixels_offset + 3] = data[data_offset] & 0xF;
+      data_offset += 1;
+    })
+    break;
+
+  case TEX_FORMAT_L4:
+    LOOP_PIXELS_COMMON1({
+      uint8_t l = half_byte ? ((data[data_offset++] & 0xF0) >> 4)
+                            : (data[data_offset] & 0xF);
+      half_byte = !half_byte;
+      l |= (l << 4);
+      pixels[pixels_offset] = l;
+      pixels[pixels_offset + 1] = l;
+      pixels[pixels_offset + 2] = l;
+      pixels[pixels_offset + 3] = 0xFF;
+    })
+    break;
+
+  case TEX_FORMAT_A4:
+    LOOP_PIXELS_COMMON1({
+      uint8_t a = half_byte ? ((data[data_offset++] & 0xF0) >> 4)
+                            : (data[data_offset] & 0xF);
+      half_byte = !half_byte;
+      pixels[pixels_offset] = 0xFF;
+      pixels[pixels_offset + 1] = 0xFF;
+      pixels[pixels_offset + 2] = 0xFF;
+      pixels[pixels_offset + 3] = a | (a << 4);
+    })
+    break;
+
+  default:
+    free(pixels);
+    *out_pixels = NULL;
+    return;
+  }
+
+#undef LOOP_PIXELS_COMMON1
+
+  *out_pixels = pixels;
 }
