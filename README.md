@@ -5,29 +5,24 @@ Everything that is extract is placed in a folder named after the original file (
 
 ## Features
 
-|||
-|-|-|
-|General Metadata|⭕|
-|Vertex Data|🚧|
-|Material Params|🕓|
-|Textures|🚧|
-|Camera Infos|🕓|
-|Look-up Tables|❌|
-|Shaders|❌|
-|Lights|🕓|
-|Fogs|❌|
-|Scenes|🕓|
-|Skeletal Animations|🕓|
-|Texture Animations|❌|
-|Visibility Animations|❌|
-|Camera Animations|🕓|
-|Light Animations|❌|
-|Emitter Data|❌|
+* ⭕ General Metadata
+* 🚧 Vertex Data
+* 🕓 Material Params
+* 🚧 Textures
+* 🕓 Camera Infos
+* ❌ Look-up Tables
+* ❌ Shaders
+* 🕓 Lights
+* ❌ Fogs
+* 🕓 Scenes
+* 🕓 Skeletal Animations
+* ❌ Texture Animations
+* ❌ Visibility Animations
+* 🕓 Camera Animations
+* ❌ Light Animations
+* ❌ Emitter Data
 
-⭕ implemented \
-🚧 work in progress \
-🕓 on the todo list \
-❌ maybe in the future
+⭕ implemented , 🚧 work in progress , 🕓 on the todo list , ❌ maybe in the future
 
 ## Usage
 
