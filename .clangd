@@ -1,2 +1,2 @@
 CompileFlags:
-  Add: [-std=c99]
+  Add: [-std=c99, -pedantic]
