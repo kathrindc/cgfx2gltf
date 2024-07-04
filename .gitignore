@@ -3,4 +3,5 @@ body_test.bin
 /cgfx2gltf
 .DS_Store
 build/
+.cache/
 

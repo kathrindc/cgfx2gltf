@@ -5,6 +5,8 @@
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#define KGFLAGS_IMPLEMENTATION
+#include "kgflags.h"
 
 #include <arpa/inet.h>
 #include <assert.h>
@@ -170,6 +172,7 @@ void read_string(FILE *file, uint32_t offset, uint32_t *length, char *text);
 char *read_string_alloc(FILE *file, uint32_t offset);
 void pica200_decode(uint8_t *data, uint32_t width, uint32_t height,
                     uint32_t format, uint8_t **pixels);
+char *make_file_path(char *dir, char *file, char *ext);
 
 int main(int argc, char **argv) {
   if (argc == 2 && strncmp(argv[1], "-h", 2) == 0) {
@@ -441,13 +444,7 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    uint32_t tga_path_length = strlen(output_dir) + strlen(name) + 6;
-    char *tga_path = malloc(tga_path_length);
-    memset(tga_path, 0, tga_path_length);
-    strlcpy(tga_path, output_dir, tga_path_length);
-    strlcat(tga_path, "/", tga_path_length);
-    strlcat(tga_path, name, tga_path_length);
-    strlcat(tga_path, ".tga", tga_path_length);
+    char *tga_path = make_file_path(output_dir, name, ".tga");
 
     int write_ok = stbi_write_tga(tga_path, txob.width, txob.height, 4, pixels);
     if (!write_ok) {
@@ -744,4 +741,16 @@ void pica200_decode(uint8_t *data, uint32_t width, uint32_t height,
 #undef LOOP_PIXELS_COMMON1
 
   *out_pixels = pixels;
+}
+
+char *make_file_path(char *dir, char *file, char *ext) {
+  uint32_t file_path_length = strlen(dir) + strlen(file) + strlen(ext) + 2;
+  char *file_path = malloc(file_path_length);
+  memset(file_path, 0, file_path_length);
+  strlcpy(file_path, dir, file_path_length);
+  strlcat(file_path, "/", file_path_length);
+  strlcat(file_path, file, file_path_length);
+  strlcat(file_path, ext, file_path_length);
+
+  return file_path;
 }

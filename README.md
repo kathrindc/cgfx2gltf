@@ -53,7 +53,8 @@ Libraries used:
 
 * [stb_image](https://github.com/nothings/stb) by Sean Barrett aka "nothings", public domain
 * [stb_image_write](https://github.com/nothings/stb) by Sean Barrett aka "nothings", public domain
-* [cgltf](https://github.com/jkuhlmann/cgltf) by Johannes Kuhlmann, MIT License
+* [cgltf](https://github.com/jkuhlmann/cgltf) by Johannes Kuhlmann aka "jkuhlmann", MIT License
+* [kgflags](https://github.com/kgabis/kgflags) by Krzysztof Gabis aka "kgabis", MIT License
 
 ## License
 
