@@ -29,6 +29,17 @@ A full list of acknowledgments / credits is available below.
 
 ⭕ implemented , 🚧 work in progress , 🕓 on the todo list , ❌ maybe in the future
 
+## Building
+
+All you need to do to build the tool is run `cmake` and then `make`.
+Personally, I recommend doing this is in a build directory to keep things organised, but that is optional.
+
+```sh
+$ mkdir build && cd build
+$ cmake .. -DCMAKE_BUILD_TYPE=Release
+$ make
+```
+
 ## Usage
 
 So, for example, the file `some_model.bin` could be extracted like this:
