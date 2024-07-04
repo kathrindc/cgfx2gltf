@@ -52,6 +52,14 @@
 #define TEX_FORMAT_ETC1A4 13
 #define TEX_FORMAT_OTHER 14
 
+#ifdef __APPLE__
+#define _STRCAT(dst, src, n) strlcat(dst, src, n)
+#define _STRCPY(dst, src, n) strlcpy(dst, src, n)
+#else
+#define _STRCAT(dst, src, n) strncat(dst, src, n)
+#define _STRCPY(dst, src, n) strncpy(dst, src, n)
+#endif
+
 typedef struct {
   int32_t ref_bit;
   uint16_t left_node;
@@ -746,10 +754,10 @@ char *make_file_path(char *dir, char *file, char *ext) {
   uint32_t file_path_length = strlen(dir) + strlen(file) + strlen(ext) + 2;
   char *file_path = malloc(file_path_length);
   memset(file_path, 0, file_path_length);
-  strlcpy(file_path, dir, file_path_length);
-  strlcat(file_path, "/", file_path_length);
-  strlcat(file_path, file, file_path_length);
-  strlcat(file_path, ext, file_path_length);
+  _STRCPY(file_path, dir, file_path_length);
+  _STRCAT(file_path, "/", file_path_length);
+  _STRCAT(file_path, file, file_path_length);
+  _STRCAT(file_path, ext, file_path_length);
 
   return file_path;
 }
