@@ -1,6 +1,7 @@
 # 🎲 cgfx2gltf - A basic CGFX exporter
 
 This tool allows you to extract (most) data from CGFX files.
+Everything that is extract is placed in a folder named after the original file (without the extension).
 
 ## Features
 
@@ -37,5 +38,7 @@ $ ./cgfx2gltf -v some_model.bin
 ```
 
 ## License
+
+The source code for this application is licensed under the MIT License.
 
 * [cgltf](https://github.com/jkuhlmann/cgltf) by Johannes Kuhlmann, MIT License
