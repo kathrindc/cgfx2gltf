@@ -8,7 +8,6 @@
 #define KGFLAGS_IMPLEMENTATION
 #include "kgflags.h"
 
-#include <arpa/inet.h>
 #include <assert.h>
 #include <libgen.h>
 #include <stdint.h>
