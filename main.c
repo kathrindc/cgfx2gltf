@@ -18,6 +18,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#ifdef WIN32
+#include <pathcch.h>
+#endif
+
 #define TYPE_MODEL 0
 #define TYPE_TEXTURE 1
 #define TYPE_LUTS 2
@@ -180,6 +184,11 @@ char *read_string_alloc(FILE *file, uint32_t offset);
 void pica200_decode(uint8_t *data, uint32_t width, uint32_t height,
                     uint32_t format, uint8_t **pixels);
 char *make_file_path(char *dir, char *file, char *ext);
+
+#ifdef WIN32
+char *basename(char *path);
+char *dirname(char *path);
+#endif
 
 int main(int argc, char **argv) {
   if (argc == 2 && strncmp(argv[1], "-h", 2) == 0) {
@@ -761,3 +770,23 @@ char *make_file_path(char *dir, char *file, char *ext) {
 
   return file_path;
 }
+
+#ifdef WIN32
+char *basename(char *path) {
+  uint32_t start = 0;
+  uint32_t len = strlen(path);
+
+  for (uint32_t i = 0; path[i] != 0; ++i) {
+    if ((path[i] == '/' || path[i] == '\\') && (i < (len - 1))) {
+      start = i + 1;
+    }
+  }
+
+  return path + start;
+}
+
+char *dirname(char *path) {
+  assert(PathCchRemoveFileSpec(path, strlen(path)) == S_OK);
+  return path;
+}
+#endif
