@@ -55,6 +55,7 @@ Informational resources:
 * [nouwt.com Wiki](https://web.archive.org/web/20150511211029/http://florian.nouwt.com/wiki/index.php/CGFX_(File_Format)): Detailed list of fields and sections in CGFX (web.archive.org)
 * [3dbrew.org Wiki](https://www.3dbrew.org/wiki/CGFX): Information on CGFX dictionaries as well as structural information
 * [Custom Mario Kart Wiki](https://mk3ds.com/index.php?title=CGFX_(File_Format)): Structural description of CGFX sections and texture formats
+* [Khronos Group Data Formats](https://github.com/KhronosGroup/DataFormat/blob/main/etc1.txt): Detailed description of the ETC1 image format
 
 Code ported from:
 
