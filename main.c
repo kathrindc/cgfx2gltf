@@ -9,7 +9,6 @@
 #include "kgflags.h"
 
 #include <assert.h>
-#include <libgen.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,6 +19,8 @@
 
 #ifdef WIN32
 #include <pathcch.h>
+#else
+#include <libgen.h>
 #endif
 
 #define TYPE_MODEL 0
