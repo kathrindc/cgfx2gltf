@@ -13,14 +13,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #ifdef WIN32
+#include <errno.h>
 #include <pathcch.h>
 #else
 #include <libgen.h>
+#include <sys/errno.h>
 #endif
 
 #define TYPE_MODEL 0
@@ -60,6 +61,7 @@
 #ifdef __APPLE__
 #define _STRCAT(dst, src, n) strlcat(dst, src, n)
 #define _STRCPY(dst, src, n) strlcpy(dst, src, n)
+#elif
 #else
 #define _STRCAT(dst, src, n) strncat(dst, src, n)
 #define _STRCPY(dst, src, n) strncpy(dst, src, n)
