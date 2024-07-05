@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 
 #ifdef WIN32
+#include <windows.h>
 #include <errno.h>
 #include <pathcch.h>
 #else
