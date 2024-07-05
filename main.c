@@ -16,9 +16,9 @@
 #include <sys/stat.h>
 
 #ifdef WIN32
-#include <windows.h>
 #include <errno.h>
 #include <pathcch.h>
+#include <windows.h>
 #else
 #include <libgen.h>
 #include <sys/errno.h>
@@ -260,7 +260,11 @@ int main(int argc, char **argv) {
       output_dir[i] = dn[i];
     }
 
+#ifdef WIN32
     output_dir[dnl] = '/';
+#else
+    output_dir[dnl] = '\\';
+#endif
 
     for (int i = 0; i < bnl; ++i) {
       output_dir[i + dnl + 1] = bn[i];
@@ -271,8 +275,13 @@ int main(int argc, char **argv) {
     free(dar);
     free(dbn);
 
-    if (mkdir(output_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0 &&
-        errno != EEXIST) {
+#ifdef WIN32
+    int mkdir_result = _mkdir(output_dir);
+#else
+    int mkdir_result = mkdir(output_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+#endif
+
+    if (mkdir_result != 0 && errno != EEXIST) {
       fclose(cgfx_file);
       fprintf(stderr, "Unable to create output directory (%d)\n", errno);
       fprintf(stderr, "%s\n", strerror(errno));
