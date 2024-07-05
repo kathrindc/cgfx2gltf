@@ -61,7 +61,6 @@
 #ifdef __APPLE__
 #define _STRCAT(dst, src, n) strlcat(dst, src, n)
 #define _STRCPY(dst, src, n) strlcpy(dst, src, n)
-#elif
 #else
 #define _STRCAT(dst, src, n) strncat(dst, src, n)
 #define _STRCPY(dst, src, n) strncpy(dst, src, n)
