@@ -3,11 +3,12 @@ cmake_minimum_required(VERSION 3.5)
 project(cgfx2gltf)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+add_executable(${PROJECT_NAME} main.c)
+
 if(MSVC)
   add_compile_definitions(_AMD64_=1)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+else()
+  target_link_libraries(${PROJECT_NAME} m)
 endif()
-
-add_executable(${PROJECT_NAME} main.c)
-target_link_libraries(${PROJECT_NAME} m)
 
