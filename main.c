@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #ifdef WIN32
 #include <errno.h>
