@@ -13,7 +13,7 @@ A full list of acknowledgments / credits is available below.
 * ⭕ General Metadata
 * 🚧 Vertex Data
 * 🕓 Material Params
-* 🚧 Textures
+* ⭕ Textures
 * 🕓 Camera Infos
 * ❌ Look-up Tables
 * ❌ Shaders
