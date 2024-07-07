@@ -491,7 +491,7 @@ int main(int argc, char **argv) {
     }
 
     if (verbose) {
-      printf("Success: Texture \"%s\" saved as TGA image\n", name);
+      printf("Texture \"%s\" saved as TGA image\n", name);
     }
 
     free(data);
@@ -517,7 +517,7 @@ uint8_t magic_eq(FILE *file, const char *magic, uint8_t optional) {
     }
 
     fclose(file);
-    fprintf(stderr, "invalid %s magic (%02x %02x %02x %02x)\n", magic, found[0],
+    fprintf(stderr, "Error: Invalid %s magic (%02x %02x %02x %02x)\n", magic, found[0],
             found[1], found[2], found[3]);
     exit(1);
   }
