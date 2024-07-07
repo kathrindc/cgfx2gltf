@@ -194,100 +194,89 @@ char *dirname(char *path);
 #endif
 
 int main(int argc, char **argv) {
-  if (argc == 2 && strncmp(argv[1], "-h", 2) == 0) {
-    printf("* * * * cgfx2gltf by kathrindc * * * *\n\n");
-    printf("Usage:\n    ./cgfx2gltf [-v|-vv|-vvv] CGFX_FILE\n\n");
-    printf("Options:\n    -h  displays this help page\n"
-           "    -v  enable more verbose output\n\n");
-    exit(0);
-  }
+  const char *cgfx_path;
+  kgflags_string("i", NULL, "The input file that should be processed", true,
+                 &cgfx_path);
 
-  if (argc != 2 && argc != 3) {
-    fprintf(stderr, "usage: cgfx2gltf [-v|-vv|-vvv] CGFX_FILE\n");
+  char *output_dir;
+  kgflags_string("o", NULL,
+                 "Directory path which exported files should be stored in",
+                 false, (const char **)&output_dir);
+
+  bool verbose;
+  kgflags_bool("v", false, "Write more detailed output to console", false,
+               &verbose);
+
+  bool list_contents;
+  kgflags_bool("l", false, "Only list file contents then stop", false,
+               &list_contents);
+
+#ifdef WIN32
+  kgflags_set_prefix("/");
+#else
+  kgflags_set_prefix("-");
+#endif
+
+  kgflags_set_custom_description("* * * * cgfx2gltf by kathrindc * * * *");
+
+  if (!kgflags_parse(argc, argv)) {
+    kgflags_print_errors();
+    printf("\n");
+    kgflags_print_usage();
     exit(1);
   }
 
   stbi_write_tga_with_rle = 0;
 
-  int verbose = 0;
-  int cgfx_index = 1;
-
-  if (argc == 3) {
-    cgfx_index = 2;
-
-    if (strcmp(argv[1], "-vvv") == 0) {
-      verbose = 3;
-    } else if (strcmp(argv[1], "-vv") == 0) {
-      verbose = 2;
-    } else if (strcmp(argv[1], "-v") == 0) {
-      verbose = 1;
-    } else {
-      fprintf(stderr, "usage: cgfx2gltf [-v|-vv|-vvv] CGFX_FILE\n");
-      exit(1);
-    }
-  }
-
-  FILE *cgfx_file = fopen(argv[cgfx_index], "rb");
+  FILE *cgfx_file = fopen(cgfx_path, "rb");
   if (!cgfx_file) {
     fprintf(stderr, "unable to open cgfx file (%d)\n", errno);
     fprintf(stderr, "%s\n", strerror(errno));
     exit(1);
   }
 
-  printf("Converting %s ...%c", basename(argv[cgfx_index]),
-         verbose ? '\n' : ' ');
+  if (!list_contents) {
+    if (output_dir == NULL) {
+      char *dar = strdup(cgfx_path);
+      char *dbn = strdup(cgfx_path);
+      char *dn = dirname(dar);
+      char *bn = basename(dbn);
+      int dnl = strlen(dn);
+      int bnl = strlen(bn);
 
-  char *output_dir;
-
-  {
-    char *dar = strdup(argv[cgfx_index]);
-    char *dbn = strdup(argv[cgfx_index]);
-    char *dn = dirname(dar);
-    char *bn = basename(dbn);
-    int dnl = strlen(dn);
-    int bnl = strlen(bn);
-
-    for (int i = bnl - 1; i > 0; --i) {
-      if (bn[i] == '.') {
-        bn[i] = 0;
-        break;
+      for (int i = bnl - 1; i > 0; --i) {
+        if (bn[i] == '.') {
+          bn[i] = 0;
+          break;
+        }
       }
-    }
 
-    bnl = strlen(bn);
-    output_dir = malloc(dnl + 1 + bnl + 1);
+      bnl = strlen(bn);
+      output_dir = malloc(dnl + 1 + bnl + 1);
 
-    for (int i = 0; i < dnl; ++i) {
-      output_dir[i] = dn[i];
-    }
+      for (int i = 0; i < dnl; ++i) {
+        output_dir[i] = dn[i];
+      }
 
 #ifdef WIN32
-    output_dir[dnl] = '\\';
+      output_dir[dnl] = '\\';
 #else
-    output_dir[dnl] = '/';
+      output_dir[dnl] = '/';
 #endif
 
-    for (int i = 0; i < bnl; ++i) {
-      output_dir[i + dnl + 1] = bn[i];
+      for (int i = 0; i < bnl; ++i) {
+        output_dir[i + dnl + 1] = bn[i];
+      }
+
+      output_dir[dnl + 1 + bnl] = 0;
+
+      free(dar);
+      free(dbn);
     }
-
-    output_dir[dnl + 1 + bnl] = 0;
-
-    free(dar);
-    free(dbn);
 
 #ifdef WIN32
-    // TODO: Use Win32 API to retrieve working directory
-
     int mkdir_result = _mkdir(output_dir);
 #else
-    if (verbose > 1) {
-      char cwd_buf[1024];
-      memset(cwd_buf, 0, 1024);
-      getcwd(cwd_buf, 1024);
-      printf("working directory = %s\n", cwd_buf);
-    }
-
     int mkdir_result = mkdir(output_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 #endif
 
@@ -297,13 +286,17 @@ int main(int argc, char **argv) {
       fprintf(stderr, "%s\n", strerror(errno));
       exit(1);
     }
-  }
 
-  if (verbose) {
-    printf("output directory = %s\n", output_dir);
+    if (verbose) {
+      printf("output directory = %s\n", output_dir);
+    }
   }
 
   magic_eq(cgfx_file, "CGFX", 0);
+
+  if (verbose) {
+    printf("header info:\n");
+  }
 
   {
     uint8_t endianess[2];
@@ -323,8 +316,9 @@ int main(int argc, char **argv) {
       exit(1);
     }
 
-    if (verbose > 2) {
-      printf("endianess = %s (0x%02x%02x)\n", desc, endianess[0], endianess[1]);
+    if (verbose) {
+      printf("  endianess: %s (0x%02x%02x)\n", desc, endianess[0],
+             endianess[1]);
     }
   }
 
@@ -332,8 +326,8 @@ int main(int argc, char **argv) {
     uint16_t header_size;
     assert(fread(&header_size, 2, 1, cgfx_file) == 1);
 
-    if (verbose > 2) {
-      printf("header size = 0x%04x\n", header_size);
+    if (verbose) {
+      printf("header size: %uh bytes\n", header_size);
     }
   }
 
@@ -341,8 +335,8 @@ int main(int argc, char **argv) {
     uint32_t revision;
     assert(fread(&revision, 4, 1, cgfx_file) == 1);
 
-    if (verbose > 2) {
-      printf("revision = %u\n", revision);
+    if (verbose) {
+      printf("revision: %u\n", revision);
     }
   }
 
@@ -350,17 +344,15 @@ int main(int argc, char **argv) {
     uint32_t file_size;
     assert(fread(&file_size, 4, 1, cgfx_file) == 1);
 
-    if (verbose > 2) {
-      printf("file size = %u\n", file_size);
+    if (verbose) {
+      printf("file size: %u bytes\n", file_size);
     }
   }
 
+  // NOTE: This field is basically useless to us, but we just still read it
+  //       so the file cursor advances. Maybe we'll use it later.
   uint32_t num_entries;
   assert(fread(&num_entries, 4, 1, cgfx_file) == 1);
-
-  if (verbose > 2) {
-    printf("num_entries = %u\n", num_entries);
-  }
 
   data_section data;
   memset(&data, 0, sizeof(data_section));
@@ -373,40 +365,8 @@ int main(int argc, char **argv) {
     read_dict_indirect(cgfx_file, &data.dicts[i]);
   }
 
-  if (verbose > 2) {
-    printf(
-        "DATA contains:\n"
-        "  - %d models\n"
-        "  - %d textures\n"
-        "  - %d LUTs\n"
-        "  - %d materials\n"
-        "  - %d shaders\n"
-        "  - %d cameras\n"
-        "  - %d lights\n"
-        "  - %d fogs\n"
-        "  - %d scenes\n"
-        "  - %d skeletal animations\n"
-        "  - %d texture animations\n"
-        "  - %d visibility animations\n"
-        "  - %d camera animations\n"
-        "  - %d light animations\n"
-        "  - %d emitters\n"
-        "  - %d particles\n",
-        data.dicts[TYPE_MODEL].num_entries,
-        data.dicts[TYPE_TEXTURE].num_entries, data.dicts[TYPE_LUTS].num_entries,
-        data.dicts[TYPE_MATERIAL].num_entries,
-        data.dicts[TYPE_SHADER].num_entries,
-        data.dicts[TYPE_CAMERA].num_entries, data.dicts[TYPE_LIGHT].num_entries,
-        data.dicts[TYPE_FOG].num_entries, data.dicts[TYPE_SCENE].num_entries,
-        data.dicts[TYPE_ANIM_SKEL].num_entries,
-        data.dicts[TYPE_ANIM_TEX].num_entries,
-        data.dicts[TYPE_ANIM_VIS].num_entries,
-        data.dicts[TYPE_ANIM_CAM].num_entries,
-        data.dicts[TYPE_ANIM_LIGHT].num_entries,
-        data.dicts[TYPE_EMITTER].num_entries,
-        data.dicts[TYPE_PARTICLE].num_entries);
-  } else if (verbose > 1) {
-    printf("DATA contains:\n");
+  if (list_contents) {
+    printf("%s contains:\n", basename((char *)cgfx_path));
 
 #define COND_PRINT_DICT(t, n)                                                  \
   if (data.dicts[t].num_entries) {                                             \
@@ -431,14 +391,23 @@ int main(int argc, char **argv) {
     COND_PRINT_DICT(TYPE_PARTICLE, "particles");
 
 #undef COND_PRINT_DICT
+
+    fclose(cgfx_file);
+    exit(0);
+  }
+
+  {
+    char *cgfx_name = strdup(cgfx_path);
+    printf("Converting %s ...%c", basename(cgfx_name), verbose ? '\n' : ' ');
+    free(cgfx_name);
   }
 
   for (int i = 0; i < data.dicts[TYPE_TEXTURE].num_entries; ++i) {
     dict_entry *entry = data.dicts[TYPE_TEXTURE].entries + i;
     char *name = read_string_alloc(cgfx_file, entry->offset_name);
 
-    if (verbose > 1) {
-      printf("Extracting texture \"%s\"\n", name);
+    if (verbose) {
+      printf("extracting texture \"%s\"\n", name);
     }
 
     fseek(cgfx_file, entry->offset_data, SEEK_SET);
@@ -517,8 +486,8 @@ uint8_t magic_eq(FILE *file, const char *magic, uint8_t optional) {
     }
 
     fclose(file);
-    fprintf(stderr, "Error: Invalid %s magic (%02x %02x %02x %02x)\n", magic, found[0],
-            found[1], found[2], found[3]);
+    fprintf(stderr, "Error: Invalid %s magic (%02x %02x %02x %02x)\n", magic,
+            found[0], found[1], found[2], found[3]);
     exit(1);
   }
 
@@ -765,7 +734,8 @@ void etc1_decode(uint8_t *encoded, uint32_t width, uint32_t height,
           uint8_t a = alpha_half ? ((alpha_block[alpha_offset++] & 0xF0) >> 4)
                                  : (alpha_block[alpha_offset] & 0xF);
 
-          memcpy(decoded + decoded_offset, decoded_color_block + block_offset, 3);
+          memcpy(decoded + decoded_offset, decoded_color_block + block_offset,
+                 3);
 
           decoded[decoded_offset + 3] = a | (a << 4);
           alpha_half = !alpha_half;
