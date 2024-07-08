@@ -118,27 +118,15 @@ typedef struct {
 } txob_header;
 
 typedef struct {
-  char *name;
-  uint32_t height;
-  uint32_t width;
-  uint32_t format;
-  uint32_t size;
-  uint32_t bpp;
-  dict user_data;
-} texture;
-
-typedef struct {
   uint8_t has_skeleton;
   uint32_t revision;
   uint32_t offset_name;
-  uint32_t num_user_data;
-  uint32_t offset_user_data;
+  dict user_data;
   uint32_t unk_17;
   uint8_t is_branch_visible;
   uint32_t num_children;
   uint32_t unk_18;
-  uint32_t num_anim_types;
-  uint32_t offset_anim_types;
+  dict animation_groups;
   float transform_scale_vec[3];
   float transform_rotate_vec[3];
   float transform_translate_vec[3];
@@ -443,33 +431,53 @@ int main(int argc, char **argv) {
     assert(fread(data, 1, txob.data_length, cgfx_file) == txob.data_length);
 
     pica200_decode(data, txob.width, txob.height, txob.format, &pixels);
+    free(data);
+
     if (pixels == NULL) {
       fprintf(stderr, "Error: Texture \"%s\" has unsupported format 0x%08x\n",
               name, txob.format);
-      free(data);
       continue;
     }
 
     char *tga_path = make_file_path(output_dir, name, ".tga");
-
     int write_ok = stbi_write_tga(tga_path, txob.width, txob.height, 4, pixels);
+
+    free(pixels);
+    free(tga_path);
+
     if (!write_ok) {
       fprintf(stderr, "Error: Failed to write \"%s\" to disk\n", name);
-      free(data);
       continue;
     }
 
     if (verbose) {
       printf("Texture \"%s\" saved as TGA image\n", name);
     }
-
-    free(data);
   }
 
   for (int i = 0; i < data.dicts[TYPE_MODEL].num_entries; ++i) {
+    uint32_t flags;
+    cmdl_header cmdl;
+
+    assert(fread(&flags, 4, 1, cgfx_file) == 1);
+    cmdl.has_skeleton = (flags & 0x80) > 0;
+
+    magic_eq(cgfx_file, "CMDL", 0);
+    assert(fread(&cmdl.revision, 4, 1, cgfx_file) == 1);
+    read_rel_offset(cgfx_file, &cmdl.offset_name);
+    read_dict_indirect(cgfx_file, &cmdl.user_data);
+    assert(fread(&cmdl.unk_17, 4, 1, cgfx_file) == 1);
+
+    assert(fread(&flags, 4, 1, cgfx_file) == 1);
+    cmdl.is_branch_visible = (flags & 1) > 0;
+
+    assert(fread(&cmdl.num_children, 4, 1, cgfx_file) == 1);
+    assert(fread(&cmdl.unk_18, 4, 1, cgfx_file) == 1);
+    read_dict_indirect(cgfx_file, &cmdl.animation_groups);
   }
 
   fclose(cgfx_file);
+  free(output_dir);
 
   printf("OK\n");
 
@@ -960,6 +968,7 @@ void pica200_decode(uint8_t *data, uint32_t width, uint32_t height,
       }
     }
 
+    free(etc1_order);
   } break;
 
   default:
