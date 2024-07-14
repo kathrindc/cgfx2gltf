@@ -12,6 +12,7 @@ add_executable(
   src/cgfx/dict.c
   src/cgfx/pica/etc1.c
   src/cgfx/pica/texture.c
+  src/cgfx/pica/shader.c
   libs/cgltf.c
   libs/kgflags.c
   libs/stb_image.c

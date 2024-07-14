@@ -84,3 +84,17 @@ void read_rgba(FILE *file, uint32_t *colour) {
   assert(fread(components + 2, 1, 1, file) == 1);
   assert(fread(components + 3, 1, 1, file) == 1);
 }
+
+void read_float_rgba(FILE *file, uint32_t *colour) {
+  float value;
+
+  *colour = 0;
+  assert(fread(&value, 4, 1, file) == 1);
+  *colour |= ((uint8_t)(value * 0xFF)) << 24;
+  assert(fread(&value, 4, 1, file) == 1);
+  *colour |= ((uint8_t)(value * 0xFF)) << 16;
+  assert(fread(&value, 4, 1, file) == 1);
+  *colour |= ((uint8_t)(value * 0xFF)) << 8;
+  assert(fread(&value, 4, 1, file) == 1);
+  *colour |= (uint8_t)(value * 0xFF);
+}

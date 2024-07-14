@@ -25,3 +25,5 @@
 #define _STRCPY(dst, src, n) strncpy(dst, src, n)
 #endif
 
+#define READ_UINT32(file, var) assert(fread(var, 4, 1, file) == 1)
+

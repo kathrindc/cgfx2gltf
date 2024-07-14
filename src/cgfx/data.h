@@ -15,3 +15,4 @@ char *read_string_alloc(FILE *file, uint32_t offset);
 void read_vec3f(FILE *file, float *vec);
 void read_mat4x3f(FILE *file, float *mat);
 void read_rgba(FILE *file, uint32_t *colour);
+void read_float_rgba(FILE *file, uint32_t *colour);

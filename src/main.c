@@ -1,4 +1,5 @@
 #include "cgfx.h"
+#include "cgfx/pica/shader.h"
 #include "kgflags.h"
 #include "stb_image.h"
 #include "stb_image_write.h"
@@ -162,11 +163,11 @@ int main(int argc, char **argv) {
     }
   }
 
-#define READ_UINT32(var) assert(fread(var, 4, 1, cgfx_file) == 1)
+#define READ_UINT32_(var) READ_UINT32(cgfx_file, var)
 
   {
     uint32_t revision;
-    READ_UINT32(&revision);
+    READ_UINT32_(&revision);
 
     if (verbose) {
       printf("revision: %u\n", revision);
@@ -175,7 +176,7 @@ int main(int argc, char **argv) {
 
   {
     uint32_t file_size;
-    READ_UINT32(&file_size);
+    READ_UINT32_(&file_size);
 
     if (verbose) {
       printf("file size: %u bytes\n", file_size);
@@ -185,14 +186,14 @@ int main(int argc, char **argv) {
   // NOTE: This field is basically useless to us, but we just still read it
   //       so the file cursor advances. Maybe we'll use it later.
   uint32_t num_entries;
-  READ_UINT32(&num_entries);
+  READ_UINT32_(&num_entries);
 
   data_section data;
   memset(&data, 0, sizeof(data_section));
   data.offset = ftell(cgfx_file);
 
   magic_eq(cgfx_file, "DATA", 0);
-  READ_UINT32(&data.size);
+  READ_UINT32_(&data.size);
 
   for (int i = 0; i < TYPE__COUNT; ++i) {
     read_dict_indirect(cgfx_file, &data.dicts[i]);
@@ -246,28 +247,28 @@ int main(int argc, char **argv) {
     fseek(cgfx_file, entry->offset_data, SEEK_SET);
 
     txob_header txob;
-    READ_UINT32(&txob.type);
+    READ_UINT32_(&txob.type);
     magic_eq(cgfx_file, "TXOB", 0);
-    READ_UINT32(&txob.revision);
+    READ_UINT32_(&txob.revision);
     read_rel_offset(cgfx_file, &txob.offset_name);
     read_dict_indirect(cgfx_file, &txob.user_data);
-    READ_UINT32(&txob.height);
-    READ_UINT32(&txob.width);
-    READ_UINT32(&txob.gl_format);
-    READ_UINT32(&txob.gl_type);
-    READ_UINT32(&txob.mipmap_levels);
-    READ_UINT32(&txob.tex_obj);
-    READ_UINT32(&txob.location_flags);
-    READ_UINT32(&txob.format);
-    READ_UINT32(&txob.unk_19);
-    READ_UINT32(&txob.unk_20);
-    READ_UINT32(&txob.unk_21);
-    READ_UINT32(&txob.data_length);
+    READ_UINT32_(&txob.height);
+    READ_UINT32_(&txob.width);
+    READ_UINT32_(&txob.gl_format);
+    READ_UINT32_(&txob.gl_type);
+    READ_UINT32_(&txob.mipmap_levels);
+    READ_UINT32_(&txob.tex_obj);
+    READ_UINT32_(&txob.location_flags);
+    READ_UINT32_(&txob.format);
+    READ_UINT32_(&txob.unk_19);
+    READ_UINT32_(&txob.unk_20);
+    READ_UINT32_(&txob.unk_21);
+    READ_UINT32_(&txob.data_length);
     read_rel_offset(cgfx_file, &txob.data_offset);
-    READ_UINT32(&txob.dyn_alloc);
-    READ_UINT32(&txob.bpp);
-    READ_UINT32(&txob.location_address);
-    READ_UINT32(&txob.memory_address);
+    READ_UINT32_(&txob.dyn_alloc);
+    READ_UINT32_(&txob.bpp);
+    READ_UINT32_(&txob.location_address);
+    READ_UINT32_(&txob.memory_address);
 
     uint8_t *data = malloc(txob.data_length);
     uint8_t *pixels;
@@ -308,20 +309,20 @@ int main(int argc, char **argv) {
 
     fseek(cgfx_file, model_entry->offset_data, SEEK_SET);
 
-    READ_UINT32(&flags);
+    READ_UINT32_(&flags);
     cmdl.has_skeleton = (flags & 0x80) > 0;
 
     magic_eq(cgfx_file, "CMDL", 0);
-    READ_UINT32(&cmdl.revision);
+    READ_UINT32_(&cmdl.revision);
     read_rel_offset(cgfx_file, &cmdl.offset_name);
     read_dict_indirect(cgfx_file, &cmdl.user_data);
-    READ_UINT32(&cmdl.unk_17);
+    READ_UINT32_(&cmdl.unk_17);
 
-    READ_UINT32(&flags);
+    READ_UINT32_(&flags);
     cmdl.is_branch_visible = (flags & 1) > 0;
 
-    READ_UINT32(&cmdl.num_children);
-    READ_UINT32(&cmdl.unk_18);
+    READ_UINT32_(&cmdl.num_children);
+    READ_UINT32_(&cmdl.unk_18);
     read_dict_indirect(cgfx_file, &cmdl.animation_groups);
     read_vec3f(cgfx_file, cmdl.transform_scale_vec);
     read_vec3f(cgfx_file, cmdl.transform_rotate_vec);
@@ -333,12 +334,12 @@ int main(int argc, char **argv) {
     read_dict_indirect(cgfx_file, &cmdl.shapes);
     read_dict_indirect(cgfx_file, &cmdl.nodes);
 
-    READ_UINT32(&flags);
+    READ_UINT32_(&flags);
     cmdl.is_visible = (flags & 1) > 0;
     cmdl.is_non_uniform_scalable = (flags & 0x100) > 0;
 
-    READ_UINT32(&cmdl.cull_mode);
-    READ_UINT32(&cmdl.layer_id);
+    READ_UINT32_(&cmdl.cull_mode);
+    READ_UINT32_(&cmdl.layer_id);
 
     if (cmdl.has_skeleton) {
       read_rel_offset(cgfx_file, &cmdl.offset_skel_info);
@@ -348,21 +349,21 @@ int main(int argc, char **argv) {
          ++material_index) {
       mtob_header mtob;
 
-      READ_UINT32(&flags);
+      READ_UINT32_(&flags);
       magic_eq(cgfx_file, "MTOB", 0);
-      READ_UINT32(&mtob.revision);
+      READ_UINT32_(&mtob.revision);
       read_rel_offset(cgfx_file, &mtob.offset_name);
       read_dict_indirect(cgfx_file, &mtob.user_data);
 
-      READ_UINT32(&flags);
+      READ_UINT32_(&flags);
       mtob.is_fragment_light_enabled = (flags & 1) > 0;
       mtob.is_vertex_light_enabled = (flags & 2) > 0;
       mtob.is_hemisphere_light_enabled = (flags & 4) > 0;
       mtob.is_hemisphere_occlusion_enabled = (flags & 8) > 0;
       mtob.is_fog_enabled = (flags & 0x16) > 0;
 
-      READ_UINT32(&mtob.texture_coords_config);
-      READ_UINT32(&mtob.translucency_kind);
+      READ_UINT32_(&mtob.texture_coords_config);
+      READ_UINT32_(&mtob.translucency_kind);
 
       // Skip colours stored as floats
       fseek(cgfx_file, 44, SEEK_CUR);
@@ -379,15 +380,67 @@ int main(int argc, char **argv) {
       read_rgba(cgfx_file, &mtob.colour.constant_4);
       read_rgba(cgfx_file, &mtob.colour.constant_5);
 
-      READ_UINT32(&flags);
+      READ_UINT32_(&flags);
       mtob.rasterisation.is_polygon_offset_enabled = (flags & 1) > 0;
 
-      READ_UINT32(&mtob.rasterisation.cull_mode);
-      READ_UINT32(&mtob.rasterisation.polygon_offset_unit);
+      READ_UINT32_(&mtob.rasterisation.cull_mode);
+      READ_UINT32_(&mtob.rasterisation.polygon_offset_unit);
 
       fseek(cgfx_file, 12, SEEK_CUR);
 
-      // NOTE: For now we're just gonna skip the fragment shaders
+      // Read depth fragment test
+      {
+        pica_command_reader depth_cmdr;
+
+        READ_UINT32_(&flags);
+        pica_cmdr_new(cgfx_file, 4, 1, &depth_cmdr);
+        mtob.fragment_operation.depth = pica_cmdr_get_depth_test(&depth_cmdr);
+        mtob.fragment_operation.depth.is_test_enabled = (flags & 1) > 0;
+        mtob.fragment_operation.depth.is_mask_enabled = (flags & 2) > 0;
+        pica_cmdr_destroy(&depth_cmdr);
+      }
+
+      // Read blend fragment operation
+      {
+        pica_command_reader blend_cmdr;
+        uint32_t blend_mode;
+        uint32_t blend_colour;
+
+        READ_UINT32_(&blend_mode);
+        switch (blend_mode) {
+        case 1:
+        case 2:
+          blend_mode = BLEND_MODE_BLEND;
+          break;
+
+        case 3:
+          blend_mode = BLEND_MODE_LOGICAL;
+          break;
+
+        default:
+          blend_mode = BLEND_MODE_NOT_USED;
+          break;
+        }
+
+        read_float_rgba(cgfx_file, &blend_colour);
+        pica_cmdr_new(cgfx_file, 5, 1, &blend_cmdr);
+        mtob.fragment_operation.blend =
+            pica_cmdr_get_blend_operation(&blend_cmdr);
+        mtob.fragment_operation.blend.mode = blend_mode;
+        mtob.fragment_operation.blend.colour = blend_colour;
+        pica_cmdr_destroy(&blend_cmdr);
+      }
+
+      // Read stencil fragment test
+      {
+        pica_command_reader stencil_cmdr;
+
+        READ_UINT32_(&flags);
+        pica_cmdr_new(cgfx_file, 4, 1, &stencil_cmdr);
+        mtob.fragment_operation.stencil =
+            pica_cmdr_get_stencil_test(&stencil_cmdr);
+        pica_cmdr_destroy(&stencil_cmdr);
+      }
     }
   }
 

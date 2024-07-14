@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cgfx/dict.h"
+#include "cgfx/shader.h"
 
 #define MAT_TRANSLUCENCY_OPAQUE 0
 #define MAT_TRANSLUCENCY_TRANSLUCENT 1
@@ -80,6 +81,8 @@ typedef struct {
   rasterisation_params rasterisation;
   texture_transform texture_transforms[3];
   texture_mapping texture_mappings[3];
+  fragment_shader fragment_shader;
+  fragment_operation fragment_operation;
   uint32_t light_set_index;
   uint32_t fog_index;
   uint8_t is_fragment_light_enabled;

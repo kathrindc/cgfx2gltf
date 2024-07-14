@@ -65,6 +65,14 @@
 #define BLEND_MODE_NOT_USED 2
 #define BLEND_MODE_BLEND 3
 
+#define STENCIL_OP_KEEP 0
+#define STENCIL_OP_ZERO 1
+#define STENCIL_OP_REPLACE 2
+#define STENCIL_OP_INCREASE 3
+#define STENCIL_OP_DECREASE 4
+#define STENCIL_OP_INCREASE_WRAP 5
+#define STENCIL_OP_DECREASE_WRAP 6
+
 typedef struct {
   uint16_t rgb_scale;
   uint16_t alpha_scale;
@@ -86,12 +94,37 @@ typedef struct {
 } fragment_sampler;
 
 typedef struct {
-  uint8_t is_depth_test_enabled;
-  uint8_t is_stencil_test_enabled;
-  uint32_t depth_test_function;
-  uint32_t is_depth_mask_enabled;
-  uint32_t blend_mode;
-  uint32_t logic_operation;
+  uint32_t test_func;
+  uint8_t is_test_enabled;
+  uint8_t is_mask_enabled;
+} depth_operation;
+
+typedef struct {
+  uint32_t mode;
+  uint32_t logical_op;
+  uint32_t rgb_func_source;
+  uint32_t rgb_func_dest;
+  uint32_t rgb_blend_eq;
+  uint32_t alpha_func_source;
+  uint32_t alpha_func_dest;
+  uint32_t alpha_blend_eq;
+  uint32_t colour;
+} blend_operation;
+
+typedef struct {
+  uint8_t is_test_enabled;
+  uint32_t test_func;
+  uint32_t test_ref;
+  uint32_t test_mask;
+  uint32_t fail_op;
+  uint32_t zfail_op;
+  uint32_t pass_op;
+} stencil_operation;
+
+typedef struct {
+  depth_operation depth;
+  blend_operation blend;
+  stencil_operation stencil;
 } fragment_operation;
 
 typedef struct {
