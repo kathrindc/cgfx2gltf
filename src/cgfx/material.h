@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cgfx/data.h"
 #include "cgfx/dict.h"
 #include "cgfx/shader.h"
 
@@ -40,7 +41,7 @@ typedef struct {
   float rotate;
   float translate_u;
   float translate_v;
-} texture_transform;
+} texture_coordinator;
 
 typedef struct {
   uint32_t min_filter;
@@ -76,10 +77,11 @@ typedef struct {
 typedef struct {
   uint32_t revision;
   uint32_t offset_name;
+  uint32_t offset_alt_names[3];
   dict user_data;
   material_colour colour;
   rasterisation_params rasterisation;
-  texture_transform texture_transforms[3];
+  texture_coordinator texture_coordinators[3];
   texture_mapping texture_mappings[3];
   fragment_shader fragment_shader;
   fragment_operation fragment_operation;
@@ -92,4 +94,6 @@ typedef struct {
   uint8_t is_fog_enabled;
   uint32_t texture_coords_config;
   uint32_t translucency_kind;
+  cgfx_ref shader_ref;
+  cgfx_ref model_ref;
 } mtob_header;

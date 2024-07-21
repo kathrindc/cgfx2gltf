@@ -98,3 +98,35 @@ void read_float_rgba(FILE *file, uint32_t *colour) {
   assert(fread(&value, 4, 1, file) == 1);
   *colour |= (uint8_t)(value * 0xFF);
 }
+
+void read_frag_sampler_indirect(FILE *file, fragment_sampler *sampler) {
+  assert(sampler);
+
+  uint32_t target_offset;
+  read_rel_offset(file, &target_offset);
+
+  if (!target_offset) {
+    sampler->offset_name = 0;
+    sampler->offset_lut_name = 0;
+    sampler->input = 0;
+    sampler->scale = 0;
+    sampler->is_absolute = 0;
+  }
+
+  uint32_t current_offset = ftell(file);
+  fseek(file, target_offset, SEEK_SET);
+
+  assert(fread(&sampler->input, 4, 1, file) == 1);
+  assert(fread(&sampler->scale, 4, 1, file) == 1);
+
+  uint32_t meta_offset;
+  read_rel_offset(file, &meta_offset);
+  fseek(file, meta_offset, SEEK_SET);
+
+  uint32_t type;
+  assert(fread(&type, 4, 1, file) == 1);
+  read_rel_offset(file, &sampler->offset_name);
+  read_rel_offset(file, &sampler->offset_lut_name);
+
+  fseek(file, current_offset, SEEK_SET);
+}

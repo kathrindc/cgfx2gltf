@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cgfx/dict.h"
+#include "cgfx/material.h"
 
 #define CULL_NEVER 0
 #define CULL_FRONT_FACE 1

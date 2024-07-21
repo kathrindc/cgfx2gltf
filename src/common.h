@@ -27,3 +27,8 @@
 
 #define READ_UINT32(file, var) assert(fread(var, 4, 1, file) == 1)
 
+typedef struct {
+  uint32_t x;
+  uint32_t y;
+} size2d;
+

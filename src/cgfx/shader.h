@@ -89,8 +89,8 @@ typedef struct {
   uint8_t is_absolute;
   uint32_t input;
   uint32_t scale;
-  char *name;
-  char *lut_name;
+  uint32_t offset_name;
+  uint32_t offset_lut_name;
 } fragment_sampler;
 
 typedef struct {
@@ -110,6 +110,12 @@ typedef struct {
   uint32_t alpha_blend_eq;
   uint32_t colour;
 } blend_operation;
+
+typedef struct {
+  uint8_t is_enabled;
+  uint32_t function;
+  uint32_t reference;
+} alpha_test;
 
 typedef struct {
   uint8_t is_test_enabled;
@@ -147,7 +153,5 @@ typedef struct {
   fragment_sampler dist1;
   fragment_sampler fresnel;
   texture_combiner combiners[6];
-  uint8_t is_alpha_test_enabled;
-  uint32_t alpha_test_function;
-  uint32_t alpha_test_reference;
+  alpha_test alpha_test;
 } fragment_shader;

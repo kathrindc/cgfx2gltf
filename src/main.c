@@ -1,9 +1,14 @@
 #include "cgfx.h"
+#include "cgfx/data.h"
+#include "cgfx/dict.h"
 #include "cgfx/pica/shader.h"
+#include "common.h"
 #include "kgflags.h"
 #include "stb_image.h"
 #include "stb_image_write.h"
 #include "utilities.h"
+#include "cgltf.h"
+#include "cgltf_write.h"
 
 typedef struct {
   uint8_t is_model;
@@ -440,6 +445,173 @@ int main(int argc, char **argv) {
         mtob.fragment_operation.stencil =
             pica_cmdr_get_stencil_test(&stencil_cmdr);
         pica_cmdr_destroy(&stencil_cmdr);
+      }
+
+      // Texture coordinates
+      uint32_t used_tex_coordinates;
+      READ_UINT32_(&used_tex_coordinates);
+
+      for (uint32_t i = 0; i < 3; ++i) {
+        texture_coordinator coordinator;
+        uint32_t source_coordinate;
+        uint32_t matrix_mode;
+
+        READ_UINT32_(&source_coordinate);
+        READ_UINT32_(&coordinator.projection);
+        READ_UINT32_(&coordinator.reference_cam);
+        READ_UINT32_(&matrix_mode);
+        assert(fread(&coordinator.scale_u, 4, 1, cgfx_file) == 1);
+        assert(fread(&coordinator.scale_v, 4, 1, cgfx_file) == 1);
+        assert(fread(&coordinator.rotate, 4, 1, cgfx_file) == 1);
+        assert(fread(&coordinator.translate_u, 4, 1, cgfx_file) == 1);
+        assert(fread(&coordinator.translate_v, 4, 1, cgfx_file) == 1);
+        READ_UINT32_(&flags);
+
+        float transform_matrix[12];
+        read_mat4x3f(cgfx_file, transform_matrix);
+
+        mtob.texture_coordinators[i] = coordinator;
+      }
+
+      // Texture mappers
+      uint32_t mapper_offsets[4];
+      read_rel_offset(cgfx_file, mapper_offsets);
+      read_rel_offset(cgfx_file, mapper_offsets + 1);
+      read_rel_offset(cgfx_file, mapper_offsets + 2);
+      read_rel_offset(cgfx_file, mapper_offsets + 3);
+
+      {
+        uint32_t position = ftell(cgfx_file);
+
+        for (uint32_t i = 0; i < 3; ++i) {
+          if (mapper_offsets[i] == 0) {
+            continue;
+          }
+
+          uint32_t dynamic_allocator;
+          uint32_t texture_header_offset;
+          uint32_t sampler_offset;
+
+          READ_UINT32_(&flags);
+          READ_UINT32_(&dynamic_allocator);
+          read_rel_offset(cgfx_file, &texture_header_offset);
+          read_rel_offset(cgfx_file, &sampler_offset);
+
+          pica_command_reader cmdr;
+          pica_cmdr_new(cgfx_file, 13, 1, &cmdr);
+
+          mtob.texture_mappings[i] = pica_cmdr_get_tex_unit_mapper(&cmdr, i);
+          mtob.texture_mappings[i].border_colour =
+              pica_cmdr_get_tex_unit_border_colour(&cmdr, i);
+
+          pica_cmdr_destroy(&cmdr);
+
+          fseek(cgfx_file, texture_header_offset + 0x18, SEEK_SET);
+          read_rel_offset(cgfx_file, mtob.offset_alt_names + i);
+
+          fseek(cgfx_file, sampler_offset + 0x10, SEEK_SET);
+          assert(fread(&mtob.texture_mappings[i].lod_bias, 4, 1, cgfx_file) ==
+                 1);
+        }
+
+        fseek(cgfx_file, position, SEEK_SET);
+      }
+
+      // Shader meta info
+      uint32_t shader_offset;
+      uint32_t frag_shader_offset;
+      uint32_t shader_prog_descript_index;
+      uint32_t num_shader_params;
+      uint32_t shader_param_ptable_offset;
+      uint32_t material_id;
+
+      read_rel_offset(cgfx_file, &shader_offset);
+      read_rel_offset(cgfx_file, &frag_shader_offset);
+      READ_UINT32_(&shader_prog_descript_index);
+      READ_UINT32_(&num_shader_params);
+      read_rel_offset(cgfx_file, &shader_param_ptable_offset);
+      READ_UINT32_(&mtob.light_set_index);
+      READ_UINT32_(&mtob.fog_index);
+
+      // NOTE: Skip the hashes, we don't need them
+      fseek(cgfx_file, 0x30, SEEK_CUR);
+
+      READ_UINT32_(&material_id);
+
+      // Shader
+      if (shader_offset) {
+        READ_UINT32_(&flags);
+        magic_eq(cgfx_file, "SHDR", 0);
+        fseek(cgfx_file, 4, SEEK_CUR);
+        read_rel_offset(cgfx_file, &mtob.shader_ref.id_offset);
+        read_dict_indirect(cgfx_file, &mtob.user_data);
+        read_rel_offset(cgfx_file, &mtob.shader_ref.name_offset);
+        fseek(cgfx_file, 4, SEEK_CUR);
+      }
+
+      // Fragment shader
+      if (frag_shader_offset) {
+        fseek(cgfx_file, frag_shader_offset, SEEK_SET);
+        read_float_rgba(cgfx_file, &mtob.fragment_shader.buffer_colour);
+
+        READ_UINT32_(&flags);
+        mtob.fragment_shader.is_clamp_highlight = flags & 1;
+        mtob.fragment_shader.is_dist0_enabled = (flags & 2) > 0;
+        mtob.fragment_shader.is_dist1_enabled = (flags & 4) > 0;
+        mtob.fragment_shader.is_geomfac0_enabled = (flags & 8) > 0;
+        mtob.fragment_shader.is_geomfac1_enabled = (flags & 16) > 0;
+        mtob.fragment_shader.is_reflect_enabled = (flags & 32) > 0;
+
+        READ_UINT32_(&mtob.fragment_shader.layer_config);
+        READ_UINT32_(&mtob.fragment_shader.fresnel_config);
+        READ_UINT32_(&mtob.fragment_shader.bump_texture);
+        READ_UINT32_(&mtob.fragment_shader.bump_mode);
+
+        READ_UINT32_(&flags);
+        mtob.fragment_shader.bump_renormalise = flags & 1;
+
+        uint32_t frag_light_table_offset;
+        read_rel_offset(cgfx_file, &frag_light_table_offset);
+
+        {
+          uint32_t previous_pos = ftell(cgfx_file);
+          fseek(cgfx_file, frag_light_table_offset, SEEK_SET);
+
+          read_frag_sampler_indirect(cgfx_file,
+                                     &mtob.fragment_shader.reflect_red);
+          read_frag_sampler_indirect(cgfx_file,
+                                     &mtob.fragment_shader.reflect_green);
+          read_frag_sampler_indirect(cgfx_file,
+                                     &mtob.fragment_shader.reflect_blue);
+          read_frag_sampler_indirect(cgfx_file, &mtob.fragment_shader.dist0);
+          read_frag_sampler_indirect(cgfx_file, &mtob.fragment_shader.dist1);
+          read_frag_sampler_indirect(cgfx_file, &mtob.fragment_shader.fresnel);
+
+          fseek(cgfx_file, previous_pos, SEEK_SET);
+        }
+
+        for (uint32_t stage = PICA_TEV_STAGE0; stage <= PICA_TEV_STAGE5;
+             ++stage) {
+          pica_command_reader reader;
+          fseek(cgfx_file, 4, SEEK_CUR);
+
+          pica_cmdr_new(cgfx_file, 6, 1, &reader);
+
+          mtob.fragment_shader.combiners[stage] =
+              pica_cmdr_get_tev_stage(&reader, stage);
+
+          pica_cmdr_destroy(&reader);
+        }
+
+        // Read alpha test
+        {
+          pica_command_reader reader;
+          pica_cmdr_new(cgfx_file, 2, 1, &reader);
+
+          mtob.fragment_shader.alpha_test = pica_cmdr_get_alpha_test(&reader);
+
+          pica_cmdr_destroy(&reader);
+        }
       }
     }
   }
